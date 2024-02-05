@@ -2,7 +2,7 @@
 # Sample of the Output
  
 =======
-# Readme for the Third Task "Unix utilites"
+# Readme for the Third Task "Pico Shell"
 ### note : you have to add their pathes to the env path variable to run from all dir as shell cmd
 ## Edits from femtoshell 
 ### executing external (cmd) binary file from file name and from it's path 
