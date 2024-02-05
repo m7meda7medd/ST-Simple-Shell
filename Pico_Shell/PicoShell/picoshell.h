@@ -11,22 +11,23 @@
 
 
 /***************************/
- extern char **environ;
+extern char **environ;
 /****************************/
 
 
 /* Configurations */
-#define INITIAL_BUF_SIZE 20 
+#define INITIAL_BUF_SIZE 20
 #define BUF_SIZE_INC 10
 #define ENV_VAR_SIZE 128
 
 /* typedefs */
-typedef enum {
-STATUS_TRUE ,
-STATUS_FALSE 
-}ReturnStatus;
+typedef enum
+{
+  STATUS_TRUE,
+  STATUS_FALSE
+} ReturnStatus;
 /* functions Declarations */
-ReturnStatus GetShellMessage(void) ;
+ReturnStatus GetShellMessage (void);
 
 
 #endif
