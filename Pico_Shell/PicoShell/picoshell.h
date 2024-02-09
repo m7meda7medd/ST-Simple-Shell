@@ -1,5 +1,5 @@
-#ifndef FEMTO_SHELL_H
-#define FEMTO_SHELL_H
+#ifndef PICO_SHELL_H
+#define PICO_SHELL_H
 /* includes */
 #include <stdio.h>
 #include <string.h>
