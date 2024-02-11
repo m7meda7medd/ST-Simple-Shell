@@ -1,31 +1,20 @@
 #include "picoshell.h"
-#include<signal.h>
 /* static functions Declarations */
 static char **Parser (unsigned long *);
 static int echo (int argc, char **argv);
 static int pwd (void);
-static int has_char(char* str , char ch) ;
 /*****************************************/
-static char sig = 0 ;
-void SigintHandler(int sig_num)
-{
-fflush(stdout) ;
-printf("\n") ;
-printf ("%s@stm-linux:$ ", getlogin());
-fflush(stdout) ;
-}	
+
 ReturnStatus
 GetShellMessage (void)
 {
   char *env_user = NULL, **tokens = NULL;
   unsigned long argc;
   int err;
-  char* key ; 
-  char* value ;
   pid_t pid = -1;
-  ReturnStatus status = STATUS_TRUE ;
+  char *str_token = NULL;	// used when setting enviroment variable 
   env_user = getlogin ();
-  signal(SIGINT ,SigintHandler) ;
+  ReturnStatus status = STATUS_TRUE;
   printf ("%s@stm-linux:$ ", env_user);
   tokens = Parser (&argc);
   if (argc != 0)
@@ -49,6 +38,8 @@ GetShellMessage (void)
 	    {
 	      printf ("errno = %d :Error occurred with pwd", errno);
 	    }
+
+
 	}
       else if (0 == strcmp (tokens[0], "cd"))
 	{
@@ -69,28 +60,38 @@ GetShellMessage (void)
 	    }
 
 	}
-      else if ( 0 == strcmp(tokens[0],"unset"))
-      {
-	err = unsetenv(tokens[1]) ;
-	if (err)
+      else if (0 == strcmp (tokens[0], "unset"))
 	{
-	printf("Error to unset env %s",tokens[1]) ;
+	  int status;
+	  if (argc != 2)
+	    {
+	      printf ("Error");
+
+	    }
+	  else
+	    {
+	      status = unsetenv (tokens[1]);
+	      if (status)
+		{
+		  printf ("Can't Unset: err:%d\n", errno);
+
+		}
+
+	    }
+
 	}
+      else if (strchr (tokens[0], '=') != NULL)
+	{
+	  str_token = strtok (tokens[0], "=");
+	  char *value = strtok (0, "\0");
+	  int status = 0;
+	  status = setenv (str_token, value, 0);
+	  if (status)
+	    {
+	      printf ("Error to Set %s", str_token);
+	    }
 
-      }
-      else if (has_char(tokens[0],'=')) 
- 	{ 
-	   key  = strtok(tokens[0] , "=") ;
-	   value = strtok( NULL , "=" ) ;
 
-	   err = setenv (key, value, 1);
-	 
-          if (err)
-            {
-              printf ("Error to Set %s", key);
-            }
-
-	
 	}
       else
 	{
@@ -159,178 +160,304 @@ GetShellMessage (void)
   return status;
 }
 
+typedef enum Parse_stat{
+START_OF_TOKEN , 
+IN_TOKEN ,
+END_OF_TOKEN,  
+END_OF_CMD ,
+END_OF_QUOTES
+}parse_state ;
 char **
 Parser (unsigned long *argc)
-{
+{ 
   size_t index = 0;
-  char ch;
-  char* l_str = NULL ;
-  size_t str_len;
-  char ch2 ; 
-  char quotes ;
-  char env  = 0 ;
-  char special_char = 0 ;
+  char ch , ch2 ; 
+  parse_state state = START_OF_TOKEN ;
+  int err = 0 ;
+  unsigned l_size = 0;
+  char* temp_env = NULL ;
+  Queue *Env_Queue = NULL ;
+ char  special_char = 0 ,
+       env = 0 ;
+  char *l_str = NULL;
+  size_t str_len ; 
   char **argv = NULL;
-  unsigned char start = 1;	// start ==  1 when we will start new token
-  unsigned long l_argc = 0;	// number of tokens    
-  fflush (stdin);	  // fflush stdin to avoid buffer undefined behaviour 
-  while (((ch = getchar()) != '\n'))
-    { 	
+  unsigned long l_argc = 0;	// number of tokens
+  fflush (stdin);		// fflush stdin to avoid buffer undefined behaviour 
+  while (ch = getchar ())	// loop on characters entered in stdin
+  { 
      
-      if ((ch != ' '))		// if char is not space 
+	if ((ch == '\n'))
 	{
-	  if (start == 1)	// if it's about to start new token
-	    {
-	      l_argc++;		// increase number of tokens by one
-	      argv = (char **) realloc (argv, sizeof (char *) * l_argc);	// allocate space for the new pointer to the token 
-	      if (argv == NULL)	// if it can't allocate print and break
-		{
-		  // printf ("Can't Allocate = 1");
-		  break;
-		}
-	      argv[l_argc - 1] = NULL;	// avoid dangling pointer :D
-	      start = 0;
+     if (state == IN_TOKEN)
+          {
+          state = END_OF_CMD;
+          }
+          else{
+                break ;
+       }
+	}
+	else if (ch == ' ')
+	{
+	  if (state == IN_TOKEN)
+	  {
+	  state = END_OF_TOKEN ;
+	  }
+	  else{
+		continue;
+	  }
+
+	 }
+	else if (((ch == '\"') || (ch == '\'')) && (!special_char))
+	{ 
+	  
+	  if (state == START_OF_TOKEN)
+	  {
+ 	   l_argc++;         // increase number of tokens by one
+           argv = (char **) realloc (argv, sizeof (char *) * l_argc);        // allocate space for the new pointer to the token 
+             if (argv == NULL) /* err = -1 */  { err = -1 ; break;}
+              argv[l_argc - 1] = NULL;  // avoid dangling pointer :D
+	      state = IN_TOKEN ;
+	      index = 0;
+	  }
+	 while ((ch2 = getchar()))
+	 { 
+	  if (ch2  == '\n')
+	  {
+		printf(">") ;
+
+	  } 
+	  if ((ch2 == ch) && (!special_char))
+	  {
+	    state = END_OF_QUOTES ; 
+	      
+	  }
+	 else  if ((ch2 == '\\') && (!special_char))
+	  {
+		special_char = 1 ;
+		continue ;
+	  }
+	  else if ((ch2 == '$') && (!special_char))
+	  {
+               
+		env = 1 ;
+		continue ;
+	  }
+	  if (special_char)
+               special_char = 0 ;
+
+	  if (state == IN_TOKEN){
+
+	  if (env) 
+	  {
+	  if ((ch2 == ' ') || (ch2 == '\n'))
+	  { 
+	    unsigned int  i = 0 ;	  
+	    Queue_enqueue(Env_Queue,'\0');
+	    temp_env = (char *)realloc (temp_env, sizeof (char) * (Env_Queue->size));	  
+	    while (!Queue_isEmpty(Env_Queue)){temp_env[i++]=Queue_dequeue(Env_Queue);}
+	    if ((l_str = getenv(temp_env)) != NULL)
+	    { 
+     		  str_len = strlen (l_str);
+                  argv[l_argc - 1] =
+                    (char *) realloc (argv[l_argc - 1],
+                                      sizeof (char) * (index+str_len+1));
+                                 strncpy(&argv[l_argc - 1][index],l_str,str_len) ;
+		index +=str_len ;
 	    }
-	   if ((ch == '|')&& (special_char == 0)) 
-	   {
+	    else {
+		// do nothing 
+	    }
+	    
+	  env = 0 ;
+	  l_str = NULL ;
+	  free(temp_env);  temp_env = NULL ;
+	  Queue_free(Env_Queue) ;Env_Queue = NULL ;
+	   }
+	  else
+	  {
+	  	if (Env_Queue == NULL)
+	  	{
+		Env_Queue = Queue_init() ;
+		Queue_enqueue(Env_Queue,ch2);
+	 	}
+		else {
 
-
-	   }
-	   if (ch == '\\')
-	   {
-	    special_char = 1 ;
-	    continue ;
-	   }
-	   if ((ch == '$') && (index == 0) && (special_char == 0))
-	   {
-	  	env = 1 ;
-		continue  ;
-	   }
-	   if ( (special_char == 0) && ((ch == '\"') || (ch == '\'')))
-            {
-              quotes = 1;
-              while ((ch2 = getchar ()) != ch)
-                {
-                  if (ch2 == '\n')
-                    {
-                      printf ("> ");
-                    }
-                  if (ch2 == ch)
-                    {
-                      quotes = 0;
-                    }
-                  if (quotes == 1)
-                    {
-                      argv[l_argc - 1] = (char *) realloc (argv[l_argc - 1], sizeof (char) * (index + 1));      //alocate memory for the character .
-                      if (argv[l_argc - 1] == NULL)     // if it can't allocate print and break
-                        {
-                          // printf ("Can't Allocate = 2");
-                          break;
-                        }
+		 Queue_enqueue(Env_Queue,ch2);
+		
+		}
+	 	 continue ;
+	  }
+	  }	  
+	// save ch2 in token 
+	 
+	    argv[l_argc - 1] = (char *)realloc (argv[l_argc - 1], sizeof (char) * (index + 1));      //alocate memory for the character .
+                      if (argv[l_argc - 1] == NULL){ err = -1 ; break; }
                       argv[l_argc - 1][index] = ch2;    // store the char
                       index++;
-                    }
-                }
-            }
-	else{	
-	  argv[l_argc - 1] = (char *) realloc (argv[l_argc - 1], sizeof (char) * (index + 1));	//alocate memory for the character .
-	  if (argv[l_argc - 1] == NULL)	// if it can't allocate print and break
-	    {
-	      // printf ("Can't Allocate = 2"); 
-	      break;
-	    }
-	
-	  argv[l_argc - 1][index] = ch;	// store the char
-	  index++;
-	  if (special_char)
-		  special_char = 0 ;
-	  
-	   }
-	}
-      else if ((start == 0))	// if start == 0 and ch == space , allocate space for ch and store '\0'
-	{
-	  start = 1;
-	  argv[l_argc - 1] =
-	    (char *) realloc (argv[l_argc - 1], sizeof (char) * (index + 1));
-	  if (argv[l_argc - 1] == NULL)	// same as above xD 
-	    {
-	      //  printf ("Can't Allocate = 3");
-	      break;
-	    }
-	  argv[l_argc - 1][index] = '\0';
-	  index = 0;		// reset index
-       if (env == 1)
+	  } else if (state == END_OF_QUOTES)
+	  { 
+
+          if (env)
+          {
+            unsigned int  i = 0 ;
+            Queue_enqueue(Env_Queue,'\0');
+            temp_env = (char *)realloc (temp_env, sizeof (char) * (Env_Queue->size));
+            while (!Queue_isEmpty(Env_Queue)){temp_env[i]=Queue_dequeue(Env_Queue); i++;}
+
+            if ((l_str = getenv(temp_env)) != NULL)
             {
-              l_str = NULL;
-              l_str = getenv (argv[l_argc - 1]);
-              if (l_str != NULL)
-                {
-                  str_len = strlen (l_str);
+               str_len = strlen(l_str);
                   argv[l_argc - 1] =
                     (char *) realloc (argv[l_argc - 1],
-                                      sizeof (char) * (str_len+1));
-                  strcpy (argv[l_argc - 1], l_str);
-                  argv[l_argc - 1][str_len] = '\0';
-                }
-	      else {
-		int i = 0 ;
-		while (argv[l_argc-1][i] != 0)
-		{
-		argv[l_argc-1][i] = 0 ;
-		i++ ;
-		}
-	      }
-              env = 0;
-	    }
+                                      sizeof (char) * (index+ str_len + 1));
+                strncpy(&argv[l_argc - 1][index],l_str,str_len) ;
+                index +=str_len ;
+            }
+            else {
 
-	}
-      else			// else  space and start == 1 
-	{
-	  // do nothing 
-	  // don't be like this else :D
-	}
-    }
-  if (start == 0)		// after looping if start == 0 put '\0' 
-    {
-      argv[l_argc - 1] =
-	(char *) realloc (argv[l_argc - 1], sizeof (char) * (index + 1));
-      if (argv[l_argc - 1] == NULL)
-	{
-	  printf ("Can't Allocate = 4");
-	}
-      argv[l_argc - 1][index] = '\0';
-      if (env == 1)
-            {
-              l_str = NULL;
-              l_str = getenv (argv[l_argc - 1]);
-              if (l_str != NULL)
-                {
-                  str_len = strlen (l_str);
-                  argv[l_argc - 1] =
-                    (char *) realloc (argv[l_argc - 1],
-                                      sizeof (char) * (str_len+1));
-                  strcpy (argv[l_argc - 1], l_str);
-                  argv[l_argc - 1][str_len] = '\0';
-                }
-	       else {
-                int i = 0 ;
-                while (argv[l_argc-1][i] != 0)
-                {
-                argv[l_argc-1][i] = 0 ;
-                i++ ;
-                } 
-	       }
-              env = 0;
             }
 
+          env = 0 ;
+          l_str = NULL ;
+          free(temp_env);  temp_env = NULL ;
+          Queue_free(Env_Queue) ;Env_Queue = NULL ;
+          }
 
-    }
+		break ;
+	  } 
+	}
+	}
+	else if ((ch == '\\') && (special_char == 0))
+	{
+	special_char = 1 ;
+	continue ;
+	}
+	else if ((ch == '$') && (special_char == 0)) 
+	{
+	env = 1 ;
+	continue ;
+	}
 
-  argv = (char **) realloc (argv, sizeof (char *) * l_argc + 1);	// allocate space for the new pointer to the token  
-  argv[l_argc] = NULL;		// Make The Last Pointer Pointing to NULL argv[argc] == NULL :D
+        if (special_char)
+                special_char = 0 ;
 
-  *argc = l_argc;
-  return argv;
+	if (state == START_OF_TOKEN) // allocate mem for ptr and store char 
+	{
+        l_argc++;         // increase number of tokens by one
+              argv = (char **) realloc (argv, sizeof (char *) * l_argc);        // allocate space for the new pointer to the token 
+              if (argv == NULL){err = -1 ; break;}
+              argv[l_argc - 1] = NULL;  // avoid dangling pointer :D
+
+
+	if (env)
+        {
+
+                if (Env_Queue == NULL)
+                {
+                Env_Queue = Queue_init() ;
+                Queue_enqueue(Env_Queue,ch);
+                }
+                else {
+
+                 Queue_enqueue(Env_Queue,ch);
+
+                }
+                state = IN_TOKEN ;
+                 continue ;
+
+        }
+
+	 argv[l_argc - 1] = (char *) realloc (argv[l_argc - 1], sizeof (char) * (index + 1));  //alocate memory for the character .
+          if (argv[l_argc - 1] == NULL){err = -1 ;break ;} // err = -1 
+          argv[l_argc - 1][index] = ch; // store the char
+          index++;
+	  state = IN_TOKEN ;	
+	}
+	else if (state == IN_TOKEN)
+	{
+
+        if (env)
+	{
+
+		if (Env_Queue == NULL)
+                {
+                Env_Queue = Queue_init() ;
+                Queue_enqueue(Env_Queue,ch);
+                }
+                else {
+
+                 Queue_enqueue(Env_Queue,ch);
+
+                }
+                 continue ;
+
+	}
+
+	argv[l_argc - 1] = (char *) realloc (argv[l_argc - 1], sizeof (char) * (index + 1));  //alocate memory for the character .
+          if (argv[l_argc - 1] == NULL){err = -1 ;break ;} // err = -1 
+          argv[l_argc - 1][index] = ch; // store the char
+          index++;
+	}
+	else if (state == END_OF_QUOTES)
+	{ 
+	 state = IN_TOKEN ;
+	 continue ;
+	}
+	else // case end of cmd or token 
+        {
+	 
+	if (env)
+          {
+            unsigned int  i = 0 ;
+            Queue_enqueue(Env_Queue,'\0');
+            temp_env = (char *)realloc (temp_env, sizeof (char) * (Env_Queue->size));
+            while (!Queue_isEmpty(Env_Queue)){temp_env[i]=Queue_dequeue(Env_Queue);i++;}
+
+            if ((l_str = getenv(temp_env)) != NULL)
+            {
+               str_len = strlen(l_str);
+                  argv[l_argc - 1] =
+                    (char *) realloc (argv[l_argc - 1],
+                                      sizeof (char) * (index+ str_len + 1));
+                strncpy(&argv[l_argc - 1][index],l_str,str_len) ;
+                index +=str_len ;
+            }
+            else {
+
+            }
+
+          env = 0 ;
+          l_str = NULL ;
+          free(temp_env);  temp_env = NULL ;
+          Queue_free(Env_Queue) ;Env_Queue = NULL ;
+          }
+
+	  if (state == END_OF_TOKEN)
+		{    		
+		argv[l_argc - 1] = (char *) realloc (argv[l_argc - 1], sizeof (char) * (index + 1));  //alocate memory for the character .
+          if (argv[l_argc - 1] == NULL){err = -1 ;break ;} // err = -1 
+          argv[l_argc - 1][index] = 0 ;
+		  index =  0 ;	  	
+                  state = START_OF_TOKEN ;
+			
+	  }
+	  else {  // case end of cmd 
+                argv[l_argc - 1] = (char *) realloc (argv[l_argc - 1], sizeof (char) * (index + 1));  //alocate memory for the character .
+          if (argv[l_argc - 1] == NULL){err = -1 ;break ;} // err = -1 
+          argv[l_argc - 1][index] = 0 ;
+
+             argv = (char **) realloc (argv, sizeof (char *) * l_argc+1);        // allocate space for the new pointer to the token 
+              if (argv == NULL){err = -1 ; break;}
+              argv[l_argc] = NULL;  // avoid dangling pointer :D
+	 break ;
+	  }
+        }
+ 
+  }
+
+*argc = l_argc;
+return argv ;
 }
 
 static int
@@ -338,17 +465,20 @@ echo (int argc, char **argv)	// echo implementation
 {
   unsigned char count = 1;
   int num_write = 0;
+  char ch;
   while (count != argc)
-    {  
-      num_write = write (1, argv[count], strlen (argv[count]));	// echo 
-      if (count != argc-1)
-      	num_write = write (1, " ", 2);	// echo space between each arg 
+    {
+	  num_write = write (1, argv[count], strlen (argv[count])); // echo the arg
+         count++ ;
+	  if (count !=argc)
+	   num_write = write (1, " ", 2);    // echo space between each ar
+					    
       if (num_write == -1)	// check if there is an error happened
 	{
 	  return -1;
 	}
-      count++;
     }
+
   num_write = write (1, "\n", 2);	// echo space between each argument
   return 0;
 }
@@ -395,20 +525,4 @@ pwd (void)			// built in pwd
     }
   free (buf);
   return 0;
-}
-static int has_char(char* str , char ch) {
-int i = 0 ;
-int status = 0 ;
-while (str[i] != '\0')
-{
- if (str[i] == ch)
- {
-
- status = 1 ;
-
- }
- i++ ;
-}
-
-return status ;
 }
