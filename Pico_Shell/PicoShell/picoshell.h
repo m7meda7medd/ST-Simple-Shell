@@ -13,21 +13,38 @@
 /***************************/
 extern char **environ;
 /****************************/
-
-
-/* Configurations */
-#define INITIAL_BUF_SIZE 20
-#define BUF_SIZE_INC 10
-#define ENV_VAR_SIZE 128
+#define INITIAL_BUF_SIZE 128
+#define BUF_SIZE_INC   10
 
 /* typedefs */
-typedef enum
-{
-  STATUS_TRUE,
-  STATUS_FALSE
+typedef enum {
+    STATUS_TRUE,
+    STATUS_FALSE
 } ReturnStatus;
+
+typedef enum Parse_stat {
+    START_OF_TOKEN,
+    IN_TOKEN,
+    END_OF_TOKEN,
+    END_OF_CMD,
+    END_OF_QUOTES
+} parse_state;
+
+typedef struct data_from_Parser {
+    unsigned long argc;
+    unsigned char Redirection;
+    unsigned char Pipe;
+} ParserData_t;
+
+typedef struct Char_info {
+    char ch;
+    unsigned long index;
+} char_info_t;
+
 /* functions Declarations */
-ReturnStatus GetShellMessage (void);
+
+
+ReturnStatus GetShellMessage(void);
 
 
 #endif
