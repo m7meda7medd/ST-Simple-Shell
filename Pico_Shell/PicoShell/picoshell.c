@@ -1,6 +1,6 @@
 #include "picoshell.h"
 /* static functions Declarations */
-static char **Parser(unsigned long *);
+char **Parser(ParserData_t * ParseData);
 static int echo(unsigned long argc, char **argv);
 static int pwd(void);
 static void Store_in_Temp_Queue(Queue ** Env_Queue, char ch);
@@ -15,129 +15,271 @@ ReturnStatus GetShellMessage(void)
 {
     char *env_user = NULL, **tokens = NULL;
     unsigned long argc;
-    ParserData_t ParserData;
+    ParserData_t ParseData = (ParserData_t) {.argc = 0,.Redirection =
+	    0,.Pipe = 0
+    };
+    char *L_H = NULL, *R_H = NULL;
+    unsigned long file_index = 0;
     int err;
+    int fd;
+    int new_fd = 0;
     pid_t pid = -1;
+    unsigned char redirection = 0, l_pipe = 0;
     char *str_token = NULL;	// used when setting enviroment variable 
     env_user = getlogin();
     ReturnStatus status = STATUS_TRUE;
-    printf("%s@stm-linux:$ ", env_user);
-    tokens = Parser(&argc);
+    printf(ANSI_COLOR_RED "%s" ANSI_COLOR_MAGNETA "@"
+	   ANSI_COLOR_BLUE "STM" ANSI_COLOR_MAGNETA "-" ANSI_COLOR_MAGNETA
+	   "linux:$" ANSI_COLOR_RESET, env_user);
+    tokens = Parser(&ParseData);
+    if (ParseData.argc != 0) {
+	for (unsigned long i = 0; i < ParseData.argc; i++) {
+	    if ((strchr(tokens[i], '>') != NULL)
+		|| (strchr(tokens[i], '<') != NULL)) {
+		redirection = 1;
+		if ((0 == strcmp(tokens[i], ">")
+		     && (file_index = i + 1, new_fd = 1))
+		    || ((0 == strcmp(tokens[i], "<"))
+			&& ((file_index = i + 1, new_fd = 0) || (1)))) {
+		    free(tokens[i]);
+		    tokens[i] = NULL;
+		    pid = fork();
+		    if (pid == -1) {
+			perror("Error with Fork\n");
+		    } else if (pid == 0) {
+			fd = open(tokens[file_index], O_RDWR | O_CREAT,
+				  0777);
+			if (fd == -1) {
+			    perror("can't open File\n");
+			} else {
+			    if (dup2(fd, new_fd) == -1) {
+				perror("Error Occured with dup2\n");
+			    } else {
+				close(fd);
+				execvp(tokens[0], tokens);
+				perror("cmd can't found");
+				exit(EXIT_FAILURE);
+			    }
+			}
+		    } else {
+			pid = wait(&err);
+		    }
+		} else if ((0 == strcmp(tokens[i], ">>")
+			    && (file_index = i + 1, new_fd = 1))) {
+		    free(tokens[i]);
+		    tokens[i] = NULL;
 
-    if (argc != 0) {
-	if (0 == strcmp(tokens[0], "exit")) {
-	    status = STATUS_FALSE;
-	} else if (0 == strcmp(tokens[0], "echo")) {
-	    err = echo(argc, tokens);
-	    if (err != 0) {
-		printf("errno = %d :Error occurred with echo", errno);
-	    }
-	} else if (0 == strcmp(tokens[0], "pwd")) {
-	    err = pwd();
-	    if (err != 0) {
-		printf("errno = %d :Error occurred with pwd", errno);
-	    }
+		    pid = fork();
+		    if (pid == -1) {
+			perror("Error with Fork");
+		    } else if (pid > 0)	//parent 
+		    {
+			pid = wait(&err);
 
-
-	} else if (0 == strcmp(tokens[0], "cd")) {
-	    if (argc != 2) {
-		printf("Usage of cd is: cd path\n");
-	    } else {
-		if (chdir(tokens[1]) == 0) {
-		    // done 
+		    } else {
+			fd = open(tokens[file_index],
+				  O_RDWR | O_CREAT | O_APPEND);
+			if (fd == -1) {
+			    perror("can't open File\n");
+			} else {
+			    free(tokens[i]);
+			    tokens[i] = NULL;
+			    if (dup2(fd, new_fd) == -1) {
+				perror("Error Occured with dup2\n");
+			    } else {
+				close(fd);
+				execvp(tokens[0], tokens);
+				perror("Error with execvp");
+				exit(EXIT_FAILURE);
+			    }
+			}
+		    }
 		} else {
-		    printf("errno = %d:Error occurred with cd\n", errno);
+		    L_H = strtok(tokens[i], "<>&");
+		    R_H = strtok(NULL, "<>&");
+		    printf("L_H = %s ,%d , R_H = %s, %d \n", L_H,
+			   atoi(L_H), R_H, atoi(R_H));
+		    pid = fork();
+		    if (pid == -1) {
+			perror("Error with fork");
+		    } else if (pid == 0) {
+			if (dup2(atoi(R_H), atoi(L_H) == -1)) {
+			    perror("Error Occured with dup2\n");
+			} else {
+			    free(tokens[i]);
+			    tokens[i] = NULL;
+			    close(atoi(R_H));
+			    L_H = NULL;
+			    R_H = NULL;
+			    execvp(tokens[0], tokens);
+			    exit(EXIT_FAILURE);
+			}
+		    } else {
+			free(tokens[i]);
+			tokens[i] = NULL;
+			pid = wait(&err);
+		    }
 		}
-	    }
+	    } else if (0 == strcmp(tokens[i], "|")) {
+		l_pipe = 1;
+		int pipes[2];
+		int pid2 = 0;
+		if (pipe(pipes) != -1) {
+		    free(tokens[i]);
+		    tokens[i] = NULL;
+		    pid = fork();
+		    if (pid == -1) {
+			perror("Error with fork\n");
+		    } else if (pid == 0) {
+			close(pipes[1]);
+			dup2(pipes[0], 0);
+			close(pipes[0]);
+			execvp(tokens[i + 1], &(tokens[i + 1]));
+			perror("Error with execvp\n");
+			exit(EXIT_FAILURE);
 
-	} else if (0 == strcmp(tokens[0], "unset")) {
-	    int status;
-	    if (argc != 2) {
-		printf("Error");
+		    } else {
+			pid2 = fork();
+			if (pid2 == -1) {
 
-	    } else {
-		status = unsetenv(tokens[1]);
-		if (status) {
-		    printf("Can't Unset: err:%d\n", errno);
+			} else if (pid2 == 0) {
+			    close(pipes[0]);
+			    dup2(pipes[1], 1);
+			    close(pipes[1]);
+			    execvp(tokens[0], tokens);
+			    perror("Error with execvp\n");
+			    exit(EXIT_FAILURE);
+			}
+
+			close(pipes[0]);
+			close(pipes[1]);
+			waitpid(-1, NULL, 0);
+			waitpid(-1, NULL, 0);
+		    }
 
 		}
-
-	    }
-
-	} else if (strchr(tokens[0], '=') != NULL) {
-	    str_token = strtok(tokens[0], "=");
-	    char *value = strtok(0, "\0");
-	    int status = 0;
-	    status = setenv(str_token, value, 1);
-	    if (status) {
-		printf("Error to Set %s", str_token);
-	    }
-
-
-	} else {
-	    pid = fork();
-	    if (pid > 0)	// Parent 
-	    {
-		pid_t returned_child;
-		int wstatus;
-		unsigned char res_wstatus = 0;
-		returned_child = wait(&wstatus);
-
-		/*  // For Debugging Purposes 
-		   res_wstatus = ((unsigned char) (WIFEXITED(wstatus) << 0) |
-		   (unsigned char) (WEXITSTATUS(wstatus) << 1) |
-		   (unsigned char) (WIFSIGNALED(wstatus) << 2) | (unsigned char) (WTERMSIG(wstatus) << 3) | (unsigned char) (WCOREDUMP(wstatus) << 4 ) | (unsigned char) (WIFSTOPPED(wstatus)<<5) | (unsigned char) (WSTOPSIG(wstatus) << 6) | (unsigned char) (WIFCONTINUED(wstatus) << 7)) ;
-		   switch (res_wstatus){ // for futute edit 
-		   case 1  :
-		   printf("res_wstatus = %d\n",res_wstatus) ;break ;
-
-		   case 2 :
-		   printf("res_wstatus = %d\n",res_wstatus) ;
-		   break ;
-
-		   case 4 : printf("res_wstatus = %d\n",res_wstatus)  ;break ;
-
-		   case 8 : printf("res_wstatus = %d\n",res_wstatus)  ;break ;
-
-		   case 16 : printf("res_wstatus = %d\n",res_wstatus)  ;break ;
-
-		   case 32 : printf("res_wstatus = %d\n",res_wstatus)  ;break ;
-
-		   case 64 : printf("res_wstatus = %d\n",res_wstatus) ; break ;
-
-		   case 128 :
-		   printf("res_wstatus = %d\n",res_wstatus) ; 
-		   break ; 
-		   default : 
-		   printf("Error with wait result \n") ;        
-		   }
-		 */
-
-	    } else if (pid == 0)	// child 
-	    {
-		if (execvp(tokens[0], tokens) == -1);
-		{
-		    // printf("%s : Can't execute with errno = %d\n",tokens[0],errno) ;
-		    printf("%s :command not found\n", tokens[0]);
-		}
-
-	    } else {
-
-		printf("Failed to fork\n");
 	    }
 	}
-    } else {
+	if (((l_pipe == 0) && (redirection == 0))
+	    || (strcmp(tokens[0], "exit") == 0)
+	    || (strcmp(tokens[0], "cd") == 0)) {
+	    if (0 == strcmp(tokens[0], "exit")) {
+		status = STATUS_FALSE;
+	    } else if (0 == strcmp(tokens[0], "echo")) {
+		err = echo(ParseData.argc, tokens);
+		if (err != 0) {
+		    printf("errno = %d :Error occurred with echo", errno);
+		}
+	    } else if (0 == strcmp(tokens[0], "pwd")) {
+		err = pwd();
+		if (err != 0) {
+		    printf("errno = %d :Error occurred with pwd", errno);
+		}
 
+
+	    } else if (0 == strcmp(tokens[0], "cd")) {
+		if (ParseData.argc != 2) {
+		    printf("Usage of cd is: cd path\n");
+		} else {
+		    if (chdir(tokens[1]) == 0) {
+			// done 
+		    } else {
+			printf("errno = %d:Error occurred with cd\n",
+			       errno);
+		    }
+		}
+
+	    } else if (0 == strcmp(tokens[0], "unset")) {
+		int status;
+		if (ParseData.argc != 2) {
+		    printf("Error");
+
+		} else {
+		    status = unsetenv(tokens[1]);
+		    if (status) {
+			printf("Can't Unset: err:%d\n", errno);
+
+		    }
+
+		}
+
+	    } else if (strchr(tokens[0], '=') != NULL) {
+		str_token = strtok(tokens[0], "=");
+		char *value = strtok(0, "\0");
+		int status = 0;
+		status = setenv(str_token, value, 1);
+		if (status) {
+		    printf("Error to Set %s", str_token);
+		}
+
+
+	    } else {
+		pid = fork();
+		if (pid > 0)	// Parent 
+		{
+		    pid_t returned_child;
+		    int wstatus;
+		    unsigned char res_wstatus = 0;
+		    returned_child = wait(&wstatus);
+
+		    /*  // For Debugging Purposes 
+		       res_wstatus = ((unsigned char) (WIFEXITED(wstatus) << 0) |
+		       (unsigned char) (WEXITSTATUS(wstatus) << 1) |
+		       (unsigned char) (WIFSIGNALED(wstatus) << 2) | (unsigned char) (WTERMSIG(wstatus) << 3) | (unsigned char) (WCOREDUMP(wstatus) << 4 ) | (unsigned char) (WIFSTOPPED(wstatus)<<5) | (unsigned char) (WSTOPSIG(wstatus) << 6) | (unsigned char) (WIFCONTINUED(wstatus) << 7)) ;
+		       switch (res_wstatus){ // for futute edit 
+		       case 1  :
+		       printf("res_wstatus = %d\n",res_wstatus) ;break ;
+
+		       case 2 :
+		       printf("res_wstatus = %d\n",res_wstatus) ;
+		       break ;
+
+		       case 4 : printf("res_wstatus = %d\n",res_wstatus)  ;break ;
+
+		       case 8 : printf("res_wstatus = %d\n",res_wstatus)  ;break ;
+
+		       case 16 : printf("res_wstatus = %d\n",res_wstatus)  ;break ;
+
+		       case 32 : printf("res_wstatus = %d\n",res_wstatus)  ;break ;
+
+		       case 64 : printf("res_wstatus = %d\n",res_wstatus) ; break ;
+
+		       case 128 :
+		       printf("res_wstatus = %d\n",res_wstatus) ; 
+		       break ; 
+		       default : 
+		       printf("Error with wait result \n") ;        
+		       }
+		     */
+
+		} else if (pid == 0)	// child 
+		{
+		    if (execvp(tokens[0], tokens) == -1);
+		    {
+			printf("%s :command not found\n", tokens[0]);
+			exit(EXIT_SUCCESS);
+		    }
+		} else {
+
+		    printf("Failed to fork\n");
+		}
+	    }
+	} else {
+
+	}
     }
-    for (unsigned long i = 0; i < argc; i++)
-	free(tokens[i]);
+    for (unsigned long i = 0; i < argc; i++) {
+	if (tokens[i] != NULL) {
+	    free(tokens[i]);
+	}
+    }
     free(tokens);
     return status;
 }
 
 
 
-char **Parser(unsigned long *argc)
+char **Parser(ParserData_t * ParseData)
 {
     parse_state state = START_OF_TOKEN;
     size_t index = 0;
@@ -153,11 +295,12 @@ char **Parser(unsigned long *argc)
     {
 
 	if ((ch == '\n')) {
-	    if (state == IN_TOKEN) {
-		state = END_OF_CMD;
-	    } else {
-		break;
+	    if (state == START_OF_TOKEN) {
+		if (l_argc == 0) {
+		    break;
+		}
 	    }
+	    state = END_OF_CMD;
 	} else if (ch == ' ') {
 	    if (state == IN_TOKEN) {
 		state = END_OF_TOKEN;
@@ -231,6 +374,7 @@ char **Parser(unsigned long *argc)
 		    break;
 		}
 	    }
+
 	} else if ((ch == '\\') && (special_char == 0)) {
 	    special_char = 1;
 	    continue;
@@ -302,16 +446,16 @@ char **Parser(unsigned long *argc)
 		index = 0;
 		state = START_OF_TOKEN;
 	    } else {		// case end of cmd 
-
-		info = (char_info_t) {
-		.ch = '\0',.index = index};
-		err = Allocate_Mem_for_Char(&l_argc, &argv, &info);
-		if (err == -1) {
-		    perror("Error Allocating Mem for Char");
-		    while (1);
+		if (index != 0) {
+		    info = (char_info_t) {
+		    .ch = '\0',.index = index};
+		    err = Allocate_Mem_for_Char(&l_argc, &argv, &info);
+		    if (err == -1) {
+			perror("Error Allocating Mem for Char");
+			while (1);
+		    }
+		    index = 0;
 		}
-		index = 0;
-
 		err = Allocate_Mem_for_Ptr(&l_argc, &argv);
 		l_argc--;
 		if (err == -1) {
@@ -324,7 +468,7 @@ char **Parser(unsigned long *argc)
 
     }
 
-    *argc = l_argc;
+    ParseData->argc = l_argc;
     return argv;
 }
 
@@ -456,7 +600,7 @@ static int echo(unsigned long argc, char **argv)	// echo implementation
     unsigned char count = 1;
     int num_write = 0;
     char ch;
-    while (count != argc) {
+    while (argv[count] != NULL) {
 	num_write = write(1, argv[count], strlen(argv[count]));	// echo the arg
 	if (num_write == -1)	// check if there is an error happened
 	{
@@ -519,8 +663,9 @@ static int pwd(void)
 	return -1;
 	break;
     case EINVAL:
-	printf("errno = %d : Size argument is zero and buf is not null\n",
-	       errno);
+	printf
+	    ("errno = %d : Size argument is zero and buf is not null\n",
+	     errno);
 	return -1;
 	break;
     case ENOENT:

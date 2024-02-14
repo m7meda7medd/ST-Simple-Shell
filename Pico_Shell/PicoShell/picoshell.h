@@ -9,12 +9,22 @@
 #include <sys/wait.h>
 #include <errno.h>
 #include "Queue/queue.h"
-
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 /***************************/
 extern char **environ;
 /****************************/
 #define INITIAL_BUF_SIZE 128
 #define BUF_SIZE_INC   10
+
+
+
+#define ANSI_COLOR_RED "\e[31m"
+#define ANSI_COLOR_GREEN "\e[32m"
+#define ANSI_COLOR_BLUE "\e[34m"
+#define ANSI_COLOR_RESET "\e[0m"
+#define ANSI_COLOR_MAGNETA "\e[35m"
 
 /* typedefs */
 typedef enum {
