@@ -43,7 +43,7 @@ typedef enum Parse_stat {
 typedef struct data_from_Parser {
     unsigned long argc;
     unsigned char Redirection;
-    unsigned char Pipe;
+    unsigned char pipe;
 } ParserData_t;
 
 typedef struct Char_info {
@@ -51,6 +51,11 @@ typedef struct Char_info {
     unsigned long index;
 } char_info_t;
 
+typedef struct cmd_struct {
+char** cmd ;
+int in ; 
+int out ;
+}cmd_typedef ;
 /* functions Declarations */
 
 
