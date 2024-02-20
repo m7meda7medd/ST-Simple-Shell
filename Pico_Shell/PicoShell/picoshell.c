@@ -9,7 +9,8 @@ static int Allocate_Mem_for_Char(unsigned long *l_argc, char ***argv,
 				 char_info_t * info);
 static void Resolve_Env_Var(char ***argv, unsigned long *l_argc,
 			    Queue ** Env_Queue, unsigned long *index);
-void Run_command(cmd_typedef*cmd_arr,int cmd_index,int* pipes_arr,int pipes_size) ;
+void Run_command(cmd_typedef * cmd_arr, int cmd_index, int *pipes_arr,
+		 int pipes_size);
 /****************************************************************/
 char *local_env = NULL;		// to handle local and enviroment variables 
 ReturnStatus GetShellMessage(void)
@@ -23,11 +24,11 @@ ReturnStatus GetShellMessage(void)
     unsigned long file_index = 0;
     int err;
     int fd;
-    int cmd_size = 1 ;
-    int pipes_size = 0 ;
-    int pipes_index = 0 ;
-    int* pipes_arr = NULL ;
-    cmd_typedef* cmd_arr = NULL ; 
+    int cmd_size = 1;
+    int pipes_size = 0;
+    int pipes_index = 0;
+    int *pipes_arr = NULL;
+    cmd_typedef *cmd_arr = NULL;
     int new_fd = 0;
     pid_t pid = -1;
     unsigned char redirection = 0, l_pipe = 0;
@@ -39,11 +40,12 @@ ReturnStatus GetShellMessage(void)
 	   "linux:$ " ANSI_COLOR_RESET, env_user);
     tokens = Parser(&ParseData);
     if (ParseData.argc != 0) {
-	 if (ParseData.pipe == 1 )
-	 {
-	  cmd_arr = (cmd_typedef*) realloc(cmd_arr,cmd_size * sizeof(cmd_typedef));
-	  cmd_arr[0].cmd = tokens ;
-	 }
+	if (ParseData.pipe == 1) {
+	    cmd_arr =
+		(cmd_typedef *) realloc(cmd_arr,
+					cmd_size * sizeof(cmd_typedef));
+	    cmd_arr[0].cmd = tokens;
+	}
 	for (unsigned long i = 0; i < ParseData.argc; i++) {
 	    if ((strchr(tokens[i], '>') != NULL)
 		|| (strchr(tokens[i], '<') != NULL)) {
@@ -132,135 +134,62 @@ ReturnStatus GetShellMessage(void)
 		    }
 		}
 	    } else if (0 == strcmp(tokens[i], "|")) {
-	         pipes_size++ ;
-		 cmd_size++ ;
-		 free(tokens[i]) ;
-		 tokens[i] = NULL ;
-		 cmd_arr = (cmd_typedef*) realloc (cmd_arr,sizeof(cmd_typedef)*cmd_size) ;   
-		 cmd_arr[cmd_size-1].cmd = &(tokens[i+1]) ;
+		pipes_size++;
+		cmd_size++;
+		free(tokens[i]);
+		tokens[i] = NULL;
+		cmd_arr =
+		    (cmd_typedef *) realloc(cmd_arr,
+					    sizeof(cmd_typedef) *
+					    cmd_size);
+		cmd_arr[cmd_size - 1].cmd = &(tokens[i + 1]);
 
-		
-	
-		    
-		 /*l_pipe = 1;
-		int pipes[2];
-		int pid2 = 0;
-		if (pipe(pipes) != -1) {
-		    free(tokens[i]);
-		    tokens[i] = NULL;
-		    pid = fork();
-		    if (pid == -1) {
-			perror("Error with fork\n");
-		    } else if (pid == 0) {
-			close(pipes[1]);
-			dup2(pipes[0], 0);
-			close(pipes[0]);
-			execvp(tokens[i + 1], &(tokens[i + 1]));
-			perror("Error with execvp\n");
-			exit(EXIT_FAILURE);
+	    }
+	}
 
-		    } else {
-			pid2 = fork();
-			if (pid2 == -1) {
-
-			} else if (pid2 == 0) {
-			    close(pipes[0]);
-			    dup2(pipes[1], 1);
-			    close(pipes[1]);
-			    execvp(tokens[0], tokens);
-			    perror("Error with execvp\n");
-			    exit(EXIT_FAILURE);
-			}
-
-			close(pipes[0]);
-			close(pipes[1]);
-			waitpid(-1, NULL, 0);
-			waitpid(-1, NULL, 0);
-		    }
-
+	if (ParseData.pipe == 1) {
+	    pipes_size = 2 * pipes_size;
+	    pipes_arr =
+		(int *) realloc(pipes_arr, sizeof(int) * (pipes_size));
+	    pipes_index = pipes_size - 1;
+	    for (int index = 0; index < pipes_size; index += 2)	// adjust pipes values 
+	    {
+		if (pipe(&(pipes_arr[index])) == -1) {
+		    perror("Error with Pipe");
+		    exit(EXIT_FAILURE);
 		}
-	   */ }
-		    
-	}
-	if (ParseData.pipe == 1)
-	{
-        pipes_size = 2*pipes_size ;
-	pipes_arr = (int*) realloc(pipes_arr,sizeof(int) *(pipes_size)) ;
-	pipes_index = pipes_size - 1 ;
-	for (int index = 0 ; index < pipes_size ;index += 2 ) // adjust pipes values 
-	{
-	 if (pipe(&(pipes_arr[index])) == -1 )
-	 {
-	  perror ("Error with Pipe") ;
-	  exit(EXIT_FAILURE) ;
-	 }
 
-	}
-	pipes_index = pipes_size-1 ;
-	int read_index = pipes_index-1;
-        int write_index = pipes_index;
-/*
-for (int index = 0 ; index < pipes_size ;index++ )
-        {
-         printf("pipes[%d]=%d\n",index,pipes_arr[index]) ;
-        }	
-	*/
-	for (int j = cmd_size-1 ;j >= 0 ;j--)
-	{
-	if (j == cmd_size-1)
-	{
-        cmd_arr[j].in = pipes_arr[read_index] ;
-        cmd_arr[j].out = 1  ;
-	read_index-=2 ;
-	}else if (j == 0)
-	{
-	cmd_arr[j].in = 0 ;
-        cmd_arr[j].out =pipes_arr[write_index] ;
-	}else{
-	cmd_arr[j].in =  pipes_arr[read_index] ;
-	cmd_arr[j].out = pipes_arr[write_index] ;
-	 write_index-=2;
-	 read_index-=2 ;
-	}
-	//printf("cmd[%d]_in = %d , cmd[%d]_out = %d\n",j,cmd_arr[j].in,j, cmd_arr[j].out) ;
-	/*
-        pid = fork() ;
-        if (pid == -1 )
-        {
-         perror ("Error with fork") ;
-         exit(EXIT_FAILURE) ;
-        }
-        else if (pid == 0)
-        {
-        if ((cmd_arr[j].in) != 0)
-        {
-	close ((cmd_arr[j].in)+1) ;
-        dup2((cmd_arr[j].in), 0) ;
-        close (cmd_arr[j].in) ;
-        }
-        if ((cmd_arr[j].out) != 1)
-        { close ((cmd_arr[j].out)-1) ;
-         dup2(((cmd_arr[j]).out),1) ;
-         close (cmd_arr[j].out) ;
-        }
-        execvp(cmd_arr[j].cmd[0],cmd_arr[j].cmd) ;
-        perror("error with execvp") ;
-        exit(EXIT_FAILURE) ;
-        }
-	*/
-	}
-	Run_command(cmd_arr,cmd_size-1,pipes_arr,pipes_size) ;
-	 for (int ii = 0 ; ii < pipes_size ; ii++)
-          {
-                close((pipes_arr[ii])) ;
-          }
-        for (int ii = 0 ; ii <=cmd_size-1; ii++)
-	{
-        waitpid(-1,NULL,0) ;
-	}
-	//Run_command(cmd_arr,cmd_size-1) ;
-	free(pipes_arr) ;
-	free(cmd_arr) ;
+	    }
+	    pipes_index = pipes_size - 1;
+	    int read_index = pipes_index - 1;
+	    int write_index = pipes_index;
+
+	    for (int j = cmd_size - 1; j >= 0; j--) {
+		if (j == cmd_size - 1) {
+		    cmd_arr[j].in = pipes_arr[read_index];
+		    cmd_arr[j].out = 1;
+		    read_index -= 2;
+		} else if (j == 0) {
+		    cmd_arr[j].in = 0;
+		    cmd_arr[j].out = pipes_arr[write_index];
+		} else {
+		    cmd_arr[j].in = pipes_arr[read_index];
+		    cmd_arr[j].out = pipes_arr[write_index];
+		    write_index -= 2;
+		    read_index -= 2;
+		}
+	    }
+
+	    Run_command(cmd_arr, cmd_size - 1, pipes_arr, pipes_size);	// Run command after setting Pipes.
+
+	    for (int ii = 0; ii < pipes_size; ii++) {
+		close((pipes_arr[ii]));
+	    }
+	    for (int ii = 0; ii <= cmd_size - 1; ii++) {
+		waitpid(-1, NULL, 0);
+	    }
+	    free(pipes_arr);
+	    free(cmd_arr);
 	}
 	if (((ParseData.pipe == 0) && (redirection == 0))
 	    || (strcmp(tokens[0], "exit") == 0)
@@ -379,51 +308,44 @@ for (int index = 0 ; index < pipes_size ;index++ )
     return status;
 }
 
-void Run_command(cmd_typedef*cmd_arr,int cmd_index,int* pipes_arr,int pipes_size)
+void Run_command(cmd_typedef * cmd_arr, int cmd_index, int *pipes_arr,
+		 int pipes_size)
 {
-        pid_t pid = -1  ;
+    pid_t pid = -1;
 
-        pid = fork() ;
-        if (pid == -1 )
-        {
-         perror ("Error with fork") ;
-         exit(EXIT_FAILURE) ;
-        }
-        else if (pid == 0)
-        {
-	 int i = 0;
-        while((i<=pipes_size-1) && (cmd_arr[cmd_index].in != pipes_arr[i]) && (cmd_arr[cmd_index].out != pipes_arr[i]))
-        {
-        close (pipes_arr[i]) ;
-        i++;
-        }
-
-        if ((cmd_arr[cmd_index].in) != 0)
-        {	
-	close(cmd_arr[cmd_index].in+1) ;
-        dup2((cmd_arr[cmd_index].in), 0) ;
-	close (cmd_arr[cmd_index].in) ;
-        }
-        if ((cmd_arr[cmd_index].out) != 1)	{   	
-	        //close(cmd_arr[cmd_index].out-1) ;
-        	 dup2(((cmd_arr[cmd_index]).out),1) ;
-		 close (cmd_arr[cmd_index].out)  ;
-        }
-        execvp(cmd_arr[cmd_index].cmd[0],cmd_arr[cmd_index].cmd) ;
-        perror("error with execvp") ;
-        exit(EXIT_FAILURE) ;
-        }
-	else{
-	if (cmd_index == 0)
-	{       
-	       return ; 
-	}
-	else{
-	Run_command(cmd_arr,cmd_index-1,pipes_arr,pipes_size);
-	}
+    pid = fork();
+    if (pid == -1) {
+	perror("Error with fork");
+	exit(EXIT_FAILURE);
+    } else if (pid == 0) {
+	int i = 0;
+	while ((i <= pipes_size - 1)
+	       && (cmd_arr[cmd_index].in != pipes_arr[i])
+	       && (cmd_arr[cmd_index].out != pipes_arr[i])) {
+	    close(pipes_arr[i]);
+	    i++;
 	}
 
-
+	if ((cmd_arr[cmd_index].in) != 0) {
+	    close(cmd_arr[cmd_index].in + 1);
+	    dup2((cmd_arr[cmd_index].in), 0);
+	    close(cmd_arr[cmd_index].in);
+	}
+	if ((cmd_arr[cmd_index].out) != 1) {
+	    //close(cmd_arr[cmd_index].out-1) ;
+	    dup2(((cmd_arr[cmd_index]).out), 1);
+	    close(cmd_arr[cmd_index].out);
+	}
+	execvp(cmd_arr[cmd_index].cmd[0], cmd_arr[cmd_index].cmd);
+	perror("error with execvp");
+	exit(EXIT_FAILURE);
+    } else {
+	if (cmd_index == 0) {
+	    return;
+	} else {
+	    Run_command(cmd_arr, cmd_index - 1, pipes_arr, pipes_size);
+	}
+    }
 }
 
 
@@ -484,10 +406,8 @@ char **Parser(ParserData_t * ParseData)
 
 		    env = 1;
 		    continue;
-		}
-		else if ((ch2 == '|') && (!special_char))
-		{
-		ParseData->pipe = 1 ;
+		} else if ((ch2 == '|') && (!special_char)) {
+		    ParseData->pipe = 1;
 		}
 		if (special_char)
 		    special_char = 0;
@@ -534,12 +454,10 @@ char **Parser(ParserData_t * ParseData)
 	} else if ((ch == '$') && (special_char == 0)) {
 	    env = 1;
 	    continue;
+	} else if ((ch == '|') && (!special_char)) {
+	    ParseData->pipe = 1;
 	}
-        else if ((ch == '|') && (!special_char))
-          {
-                ParseData->pipe = 1 ;
-          }
-	
+
 
 	if (special_char)
 	    special_char = 0;
@@ -791,7 +709,6 @@ static int echo(unsigned long argc, char **argv)	// echo implementation
  *                    else err = 0 "Succcess"
  *
  */
-
 
 static int pwd(void)
 {
