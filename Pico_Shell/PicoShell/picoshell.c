@@ -46,7 +46,8 @@ ReturnStatus GetShellMessage(void)
 					cmd_size * sizeof(cmd_typedef));
 	    cmd_arr[0].cmd = tokens;
 	}
-	for (unsigned long i = 0; i < ParseData.argc; i++) {
+	int i = 0 ;
+	while (tokens[i] != NULL) {
 	    if ((strchr(tokens[i], '>') != NULL)
 		|| (strchr(tokens[i], '<') != NULL)) {
 		redirection = 1;
@@ -144,7 +145,7 @@ ReturnStatus GetShellMessage(void)
 					    cmd_size);
 		cmd_arr[cmd_size - 1].cmd = &(tokens[i + 1]);
 
-	    }
+	    }i++ ;
 	}
 
 	if (ParseData.pipe == 1) {
@@ -593,7 +594,7 @@ static void Resolve_Env_Var(char ***argv, unsigned long *l_argc,
     char *temp_env = NULL;
     char *l_str = NULL;
     size_t str_len;
-
+    if ((*Env_Queue) != NULL){
     Queue_enqueue((*Env_Queue), '\0');
     temp_env =
 	(char *) realloc(temp_env, sizeof(char) * ((*Env_Queue)->size));
@@ -608,14 +609,16 @@ static void Resolve_Env_Var(char ***argv, unsigned long *l_argc,
 	strncpy(&((*argv)[(*l_argc) - 1][*index]), l_str, str_len);
 	*index += str_len;
     } else {
-	// enviroment variable can't be found
+		
+	    // enviroment variable can't be found
     }
-
+    
     free(temp_env);
     temp_env = NULL;
     l_str = NULL;
     Queue_free(*Env_Queue);
     *Env_Queue = NULL;
+    }
 }
 
 /*  
