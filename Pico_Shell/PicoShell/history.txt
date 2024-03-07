@@ -1,0 +1,17 @@
+ls -l 
+gedit 
+gedit & 
+export x=HelloWorld 
+echo HelloWorld 
+exit 
+cd .. 
+pwd 
+cd ~ 
+pwd 
+exit 
+pwd 
+cd ~ 
+exit 
+pwd 
+cat ~ 
+cd ~ 

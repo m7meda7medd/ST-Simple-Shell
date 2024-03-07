@@ -11,19 +11,17 @@ static void Resolve_Env_Var(char ***argv, unsigned long *l_argc,
 			    Queue ** Env_Queue, unsigned long *index);
 void Run_command(cmd_typedef * cmd_arr, int cmd_index, int *pipes_arr,
 		 int pipes_size);
-static void ReapZombies(void);
+static void ReapZombies(void)  ;
 /****************************************************************/
 
 void SigintHandler(int sig_num)
 {
-    printf("\n");
+printf("\n") ;
 }
-
 void SigchldHandler(int sig_num)
 {
-    ReapZombies();
+ReapZombies() ;	
 }
-
 /******************************************************************/
 char *local_env = NULL;		// to handle local and enviroment variables 
 ReturnStatus GetShellMessage(void)
@@ -36,23 +34,29 @@ ReturnStatus GetShellMessage(void)
     char *L_H = NULL, *R_H = NULL;
     unsigned long file_index = 0;
     int err, fd, cmd_size = 1,
-	pipes_size = 0, pipes_index = 0, *pipes_arr = NULL;
+     	pipes_size = 0,
+	pipes_index = 0,
+	*pipes_arr = NULL;
     cmd_typedef *cmd_arr = NULL;
-    int new_fd = 0, history_fd = -2, signal_fd = -2, num_write;
-    unsigned char background = 0;
+    int new_fd = 0,
+	history_fd = -2 ,
+	signal_fd = -2 ,
+	num_write ;
+    unsigned char background = 0 ;
     pid_t pid = -1;
     unsigned char redirection = 0, l_pipe = 0;
     char *str_token = NULL;	// used when setting enviroment variable 
-    signal(SIGCHLD, SigchldHandler);
-    signal(SIGINT, SigintHandler);
+    signal(SIGCHLD ,SigchldHandler) ;
+    signal(SIGINT ,SigintHandler) ;
     env_user = getlogin();
     ReturnStatus status = STATUS_TRUE;
     printf(ANSI_COLOR_RED "%s" ANSI_COLOR_MAGNETA "@"
 	   ANSI_COLOR_BLUE "STM" ANSI_COLOR_MAGNETA "-" ANSI_COLOR_MAGNETA
 	   "linux:$ " ANSI_COLOR_RESET, env_user);
-    history_fd = open("history.txt", O_CREAT | O_RDWR | O_APPEND, 0666);
-    if ((history_fd == -1)) {
-	perror("Can't open history file\n");
+    history_fd = open("history.txt",O_CREAT | O_RDWR|O_APPEND,0666) ;
+    if ((history_fd == -1))
+    {
+	perror("Can't open history file\n") ;
     }
     tokens = Parser(&ParseData);
     if (ParseData.argc != 0) {
@@ -62,13 +66,11 @@ ReturnStatus GetShellMessage(void)
 					cmd_size * sizeof(cmd_typedef));
 	    cmd_arr[0].cmd = tokens;
 	}
-	int i = 0;
+	int i = 0 ;
 	while (tokens[i] != NULL) {
-	    num_write = write(history_fd, tokens[i], strlen(tokens[i]));
-	    if (num_write == -1) {
-		perror("Error writing to history file\n");
-	    }
-	    num_write = write(history_fd, " ", sizeof(char));
+	      num_write = write(history_fd,tokens[i],strlen(tokens[i]));
+	      if (num_write == -1) {perror("Error writing to history file\n") ;}
+	        num_write = write(history_fd," ",sizeof(char));
 	    if ((strchr(tokens[i], '>') != NULL)
 		|| (strchr(tokens[i], '<') != NULL)) {
 		redirection = 1;
@@ -166,8 +168,7 @@ ReturnStatus GetShellMessage(void)
 					    cmd_size);
 		cmd_arr[cmd_size - 1].cmd = &(tokens[i + 1]);
 
-	    }
-	    i++;
+	    }i++ ;
 	}
 
 	if (ParseData.pipe == 1) {
@@ -214,30 +215,35 @@ ReturnStatus GetShellMessage(void)
 	    free(pipes_arr);
 	    free(cmd_arr);
 	}
-	if (!(strcmp(tokens[ParseData.argc - 1], "&"))) {
-	    background = 1;
+	if (!(strcmp(tokens[ParseData.argc-1],"&")))
+	{
+		background = 1 ;
 	}
 	if (((ParseData.pipe == 0) && (redirection == 0))
 	    || (strcmp(tokens[0], "exit") == 0)
-	    || (strcmp(tokens[0], "cd") == 0)) {
+	    || (strcmp(tokens[0], "cd") == 0)){
 	    if (!strcmp(tokens[0], "exit")) {
 		status = STATUS_FALSE;
-	    } else if (!strcmp(tokens[0], "export")) {
+	    }
+	    else if (!strcmp(tokens[0], "export"))
+	    {
 		if (strchr(tokens[1], '=') != NULL) {
-		    str_token = strtok(tokens[1], "=");
-		    char *value = strtok(0, "\0");
-		    int status = 0;
-		    status = setenv(str_token, value, 1);
-		    if (status) {
-			printf("Error to Set %s", str_token);
-		    }
-		} else {
-		    perror("Can't set Env Var\n");
-
+                str_token = strtok(tokens[1], "=");
+                char *value = strtok(0, "\0");
+                int status = 0;
+                status = setenv(str_token, value, 1);
+                if (status) {
+                    printf("Error to Set %s", str_token);
+                }
 		}
+		else {
+		  perror("Can't set Env Var\n") ;
+
+		}	
 
 
-	    } else if (!strcmp(tokens[0], "echo")) {
+	    }
+	    else if (!strcmp(tokens[0], "echo")) {
 		err = echo(ParseData.argc, tokens);
 		if (err != 0) {
 		    printf("errno = %d :Error occurred with echo", errno);
@@ -252,29 +258,12 @@ ReturnStatus GetShellMessage(void)
 	    } else if (0 == strcmp(tokens[0], "cd")) {
 		if (ParseData.argc != 2) {
 		    printf("Usage of cd is: cd path\n");
-		}
-		else if (!strcmp(tokens[1],"~"))
-		{
-		
-		char*  home  = getenv("HOME") ;
-		if (home == NULL)
-		{
-		perror("can't see Home Directory\n");
-		}
-		else{
-			 if (chdir(home) == 0) {
-                        // done 
-                    } else {
-                        perror("Error occurred with cd\n");
-                    }
-		}
-		
-		}	
-		else {
+		} else {
 		    if (chdir(tokens[1]) == 0) {
 			// done 
 		    } else {
-			perror("Error occurred with cd\n");
+			printf("errno = %d:Error occurred with cd\n",
+			       errno);
 		    }
 		}
 
@@ -306,18 +295,19 @@ ReturnStatus GetShellMessage(void)
 		pid = fork();
 		if (pid > 0)	// Parent 
 		{
-		    if (!background) {
+		    if (!background)
+		    {   
 			pid_t returned_child;
-			int wstatus;
-			unsigned char res_wstatus = 0;
-			returned_child = wait(&wstatus);
+		    	int wstatus;
+		    	unsigned char res_wstatus = 0;
+		    	returned_child = wait(&wstatus);
 		    }
 		} else if (pid == 0)	// child 
-		{
-		    if (background) {
-			free(tokens[ParseData.argc - 1]);
-			tokens[ParseData.argc - 1] = NULL;
-		    }
+		{   if (background)
+			{
+			free(tokens[ParseData.argc-1]) ;
+			tokens[ParseData.argc-1] = NULL ;
+			}
 		    if (execvp(tokens[0], tokens) == -1);
 		    {
 			printf("%s :command not found\n", tokens[0]);
@@ -332,16 +322,10 @@ ReturnStatus GetShellMessage(void)
 
 	}
     }
-    num_write = write(history_fd, "\n", 1);
-    if (num_write == -1) {
-	perror("Error Writing to history file\n");
-    }
-    if (history_fd > 0) {
-	close(history_fd);
-    }
-    if (signal_fd > 0) {
-	close(signal_fd);
-    }
+    num_write = write(history_fd,"\n",1) ;
+    if (num_write == -1) {perror("Error Writing to history file\n") ;}
+    if (history_fd > 0) {close(history_fd) ;}
+    if (signal_fd > 0) { close(signal_fd) ;}
     for (unsigned long i = 0; i < argc; i++) {
 	if (tokens[i] != NULL) {
 	    free(tokens[i]);
@@ -591,7 +575,6 @@ char **Parser(ParserData_t * ParseData)
     ParseData->argc = l_argc;
     return argv;
 }
-
 /*  
  * scope : static
  *
@@ -605,26 +588,24 @@ char **Parser(ParserData_t * ParseData)
  *
  */
 
-static void ReapZombies(void)
+static void ReapZombies(void) {
+pid_t pid ;
+int wstatus ;
+int signal_fd ;
+int num_write = 0 ;
+char msg[100]  ;
+ signal_fd = open("log.txt",O_CREAT | O_RDWR | O_APPEND,0666) ;
+if (signal_fd == -1 ) {perror("Error Opening log file") ;}
+while ((pid = waitpid(-1,&wstatus,WNOHANG)) > 0)
 {
-    pid_t pid;
-    int wstatus;
-    int signal_fd;
-    int num_write = 0;
-    char msg[100];
-    signal_fd = open("log.txt", O_CREAT | O_RDWR | O_APPEND, 0666);
-    if (signal_fd == -1) {
-	perror("Error Opening log file");
-    }
-    while ((pid = waitpid(-1, &wstatus, WNOHANG)) > 0) {
-	sprintf(msg, "[%d] Terminated with status code = %d\n", pid,
-		wstatus);
-	num_write = write(signal_fd, msg, strlen(msg));
-	if (num_write == -1) {
-	    perror("can't write to log.txt\n");
-	}
-    }
-    close(signal_fd);
+sprintf(msg,"[%d] Terminated with status code = %d\n",pid,wstatus) ;
+num_write = write(signal_fd,msg,strlen(msg)) ;
+if (num_write == -1 )
+{
+perror ("can't write to log.txt\n") ;
+}
+}
+close (signal_fd) ;
 }
 
 /*  
@@ -672,31 +653,30 @@ static void Resolve_Env_Var(char ***argv, unsigned long *l_argc,
     char *temp_env = NULL;
     char *l_str = NULL;
     size_t str_len;
-    if ((*Env_Queue) != NULL) {
-	Queue_enqueue((*Env_Queue), '\0');
-	temp_env =
-	    (char *) realloc(temp_env,
-			     sizeof(char) * ((*Env_Queue)->size));
-	while (!Queue_isEmpty(*Env_Queue)) {
-	    temp_env[i++] = Queue_dequeue(*Env_Queue);
-	}
-	if ((l_str = getenv(temp_env)) != NULL) {
-	    str_len = strlen(l_str);
-	    (*argv)[(*l_argc) - 1] =
-		(char *) realloc((*argv)[(*l_argc) - 1],
-				 sizeof(char) * (*index + str_len + 1));
-	    strncpy(&((*argv)[(*l_argc) - 1][*index]), l_str, str_len);
-	    *index += str_len;
-	} else {
-
+    if ((*Env_Queue) != NULL){
+    Queue_enqueue((*Env_Queue), '\0');
+    temp_env =
+	(char *) realloc(temp_env, sizeof(char) * ((*Env_Queue)->size));
+    while (!Queue_isEmpty(*Env_Queue)) {
+	temp_env[i++] = Queue_dequeue(*Env_Queue);
+    }
+    if ((l_str = getenv(temp_env)) != NULL) {
+	str_len = strlen(l_str);
+	(*argv)[(*l_argc) - 1] =
+	    (char *) realloc((*argv)[(*l_argc) - 1],
+			     sizeof(char) * (*index + str_len + 1));
+	strncpy(&((*argv)[(*l_argc) - 1][*index]), l_str, str_len);
+	*index += str_len;
+    } else {
+		
 	    // enviroment variable can't be found
-	}
-
-	free(temp_env);
-	temp_env = NULL;
-	l_str = NULL;
-	Queue_free(*Env_Queue);
-	*Env_Queue = NULL;
+    }
+    
+    free(temp_env);
+    temp_env = NULL;
+    l_str = NULL;
+    Queue_free(*Env_Queue);
+    *Env_Queue = NULL;
     }
 }
 
