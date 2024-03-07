@@ -24,3 +24,133 @@ echo hello
 
 
 exit 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+exit 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ls 
+cd 
+pwd 
+cd .. 
+
+
+
+
+
+echo x 
+export x=5 
+echo 5 
+export x= 
+
+
+gedit 
+gedit & 
+
+
+
+ps 
+ps 
+cat log.txt 
+ls 
+cd ~ 
+
+ls 
+vim picoshell.c 
+cd 
+q 
+exit 
+export x= export x= export x= echo x=5 
+
+
+echo x=3 
+export x= export x= export x= !gcc 
+exit 
+export x= 
+q 
+exit 
+export x= 
+exit 
+export x= 
+env 
+exit 
+exit 
+export x= 
+env 
+exit 
+pwd 
+cd pwd 
+cd 
+pwd 
+cd 

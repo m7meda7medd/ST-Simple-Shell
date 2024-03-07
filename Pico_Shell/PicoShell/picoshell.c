@@ -223,20 +223,12 @@ ReturnStatus GetShellMessage(void)
 	    if (!strcmp(tokens[0], "exit")) {
 		status = STATUS_FALSE;
 	    } else if (!strcmp(tokens[0], "export")) {
-		if (strchr(tokens[1], '=') != NULL) {
-		    str_token = strtok(tokens[1], "=");
-		    char *value = strtok(0, "\0");
 		    int status = 0;
-		    status = setenv(str_token, value, 1);
+		    
+		    status = putenv(tokens[1]);
 		    if (status) {
-			printf("Error to Set %s", str_token);
+			perror("Error to Set env var");
 		    }
-		} else {
-		    perror("Can't set Env Var\n");
-
-		}
-
-
 	    } else if (!strcmp(tokens[0], "echo")) {
 		err = echo(ParseData.argc, tokens);
 		if (err != 0) {
@@ -250,10 +242,11 @@ ReturnStatus GetShellMessage(void)
 
 
 	    } else if (0 == strcmp(tokens[0], "cd")) {
-		if (ParseData.argc != 2) {
-		    printf("Usage of cd is: cd path\n");
-		}
-		else if (!strcmp(tokens[1],"~"))
+		if (ParseData.argc > 2 )
+		{
+		perror ("Error with cd\n") ;
+		}	
+		else if ( (ParseData.argc == 1) || (!strcmp(tokens[1],"~")) )
 		{
 		
 		char*  home  = getenv("HOME") ;
@@ -298,7 +291,7 @@ ReturnStatus GetShellMessage(void)
 		int status = 0;
 		status = setenv(str_token, value, 1);
 		if (status) {
-		    printf("Error to Set %s", str_token);
+		    perror("Error to Set env var ");
 		}
 
 
