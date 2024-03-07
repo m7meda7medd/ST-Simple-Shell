@@ -15,3 +15,12 @@ exit
 pwd 
 cat ~ 
 cd ~ 
+ls -l 
+echo echo echo echo echo 
+echo hello 
+
+
+
+
+
+exit 

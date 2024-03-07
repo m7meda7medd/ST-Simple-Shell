@@ -214,7 +214,7 @@ ReturnStatus GetShellMessage(void)
 	    free(pipes_arr);
 	    free(cmd_arr);
 	}
-	if (!(strcmp(tokens[ParseData.argc - 1], "&"))) {
+	if ((tokens[ParseData.argc-1] != NULL) && (!(strcmp(tokens[ParseData.argc - 1], "&")))) {
 	    background = 1;
 	}
 	if (((ParseData.pipe == 0) && (redirection == 0))
