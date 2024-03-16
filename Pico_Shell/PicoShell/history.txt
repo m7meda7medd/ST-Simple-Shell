@@ -1,156 +1,33 @@
-ls -l 
-gedit 
+ls 
+vcat history.txt 
+cat history.txt 
+cat history.txt 
+cat history.txt 
+cat history.txt 
+ls 
+cat history.txt 
+exit 
+cat hhistory.txt 
+cat history.txt 
+cat history.txt 
+exit 
+echo yes | wc 
+echo yes | wc | wc 
+cat history.txt 
+cat history.txt | wc 
+cat history.txt | wc 
 gedit & 
-export x=HelloWorld 
-echo HelloWorld 
+firefox & 
+firefox 
 exit 
-cd .. 
-pwd 
-cd ~ 
-pwd 
+echo yes >> yes
+history.txt 
+cat history.txt 
+cat history.txt > old_history.txt 
+diff history.txt old_history.txt 
+cat old_history.txt 
+cat history.txt 
 exit 
-pwd 
-cd ~ 
+echo abokhalil 
+cat history.txt 
 exit 
-pwd 
-cat ~ 
-cd ~ 
-ls -l 
-echo echo echo echo echo 
-echo hello 
-
-
-
-
-
-exit 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-exit 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-ls 
-cd 
-pwd 
-cd .. 
-
-
-
-
-
-echo x 
-export x=5 
-echo 5 
-export x= 
-
-
-gedit 
-gedit & 
-
-
-
-ps 
-ps 
-cat log.txt 
-ls 
-cd ~ 
-
-ls 
-vim picoshell.c 
-cd 
-q 
-exit 
-export x= export x= export x= echo x=5 
-
-
-echo x=3 
-export x= export x= export x= !gcc 
-exit 
-export x= 
-q 
-exit 
-export x= 
-exit 
-export x= 
-env 
-exit 
-exit 
-export x= 
-env 
-exit 
-pwd 
-cd pwd 
-cd 
-pwd 
-cd 

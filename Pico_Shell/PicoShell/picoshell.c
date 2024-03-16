@@ -130,6 +130,8 @@ ReturnStatus GetShellMessage(void)
 			}
 		    }
 		} else {
+		   if (tokens[i] != NULL)
+		   {
 		    L_H = strtok(tokens[i], "<>&");
 		    R_H = strtok(NULL, "<>&");
 		    printf("L_H = %s ,%d , R_H = %s, %d \n", L_H,
@@ -154,7 +156,8 @@ ReturnStatus GetShellMessage(void)
 			tokens[i] = NULL;
 			pid = wait(&err);
 		    }
-		}
+		  }
+	        }
 	    } else if (0 == strcmp(tokens[i], "|")) {
 		pipes_size++;
 		cmd_size++;
@@ -169,6 +172,11 @@ ReturnStatus GetShellMessage(void)
 	    }
 	    i++;
 	}
+   	if (tokens != NULL)
+    	{
+    	num_write = write(history_fd,"\n", 1);
+    	}
+
 
 	if (ParseData.pipe == 1) {
 	    pipes_size = 2 * pipes_size;
@@ -244,7 +252,7 @@ ReturnStatus GetShellMessage(void)
 	    } else if (0 == strcmp(tokens[0], "cd")) {
 		if (ParseData.argc > 2 )
 		{
-		perror ("Error with cd\n") ;
+		perror ("Error with cd \n") ;
 		}	
 		else if ( (ParseData.argc == 1) || (!strcmp(tokens[1],"~")) )
 		{
@@ -325,10 +333,7 @@ ReturnStatus GetShellMessage(void)
 
 	}
     }
-    num_write = write(history_fd, "\n", 1);
-    if (num_write == -1) {
-	perror("Error Writing to history file\n");
-    }
+
     if (history_fd > 0) {
 	close(history_fd);
     }
@@ -453,7 +458,7 @@ char **Parser(ParserData_t * ParseData)
 
 		    if (env) {
 
-			if ((ch2 == ' ') || (ch2 == '\n')) {
+			if ((ch2 == ' ') || (ch2 == '\n') || (ch2 == ':')) {
 
 			    Resolve_Env_Var(&argv, &l_argc, &Env_Queue,
 					    &index);
