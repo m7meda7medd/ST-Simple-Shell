@@ -50,11 +50,11 @@ ReturnStatus GetShellMessage(void)
     printf(ANSI_COLOR_RED "%s" ANSI_COLOR_MAGNETA "@"
 	   ANSI_COLOR_BLUE "STM" ANSI_COLOR_MAGNETA "-" ANSI_COLOR_MAGNETA
 	   "linux:$ " ANSI_COLOR_RESET, env_user);
-    
+
     history_fd = open("history.txt", O_CREAT | O_RDWR | O_APPEND, 0666);
     if ((history_fd == -1)) {
 	perror("Can't open history file\n");
-	exit(EXIT_FAILURE) ;
+	exit(EXIT_FAILURE);
     }
     tokens = Parser(&ParseData);
     if (ParseData.argc != 0) {
@@ -132,37 +132,36 @@ ReturnStatus GetShellMessage(void)
 			}
 		    }
 		} else {
-		   if (tokens[i] != NULL)
-		   {
-		    L_H = strtok(tokens[i], "<>&");
-		    R_H = strtok(NULL, "<>&");
-		    if ((L_H != NULL) && (R_H != NULL)) ;
-		    { 
-		    pid = fork();
-		    if (pid == -1) {
-			perror("Error with fork");
-			exit(EXIT_FAILURE);
-		    } else if (pid == 0) {
-			if (dup2(atoi(R_H), atoi(L_H) == -1)) {
-			    perror("Error Occured with dup2\n");
-			    exit(EXIT_FAILURE);
-			} else {
-			    free(tokens[i]);
-			    tokens[i] = NULL;
-			    close(atoi(R_H));
-			    L_H = NULL;
-			    R_H = NULL;
-			    execvp(tokens[0], tokens);
-			    exit(EXIT_FAILURE);
+		    if (tokens[i] != NULL) {
+			L_H = strtok(tokens[i], "<>&");
+			R_H = strtok(NULL, "<>&");
+			if ((L_H != NULL) && (R_H != NULL));
+			{
+			    pid = fork();
+			    if (pid == -1) {
+				perror("Error with fork");
+				exit(EXIT_FAILURE);
+			    } else if (pid == 0) {
+				if (dup2(atoi(R_H), atoi(L_H) == -1)) {
+				    perror("Error Occured with dup2\n");
+				    exit(EXIT_FAILURE);
+				} else {
+				    free(tokens[i]);
+				    tokens[i] = NULL;
+				    close(atoi(R_H));
+				    L_H = NULL;
+				    R_H = NULL;
+				    execvp(tokens[0], tokens);
+				    exit(EXIT_FAILURE);
+				}
+			    } else {
+				free(tokens[i]);
+				tokens[i] = NULL;
+				pid = wait(&err);
+			    }
 			}
-		    } else {
-			free(tokens[i]);
-			tokens[i] = NULL;
-			pid = wait(&err);
 		    }
-		   }
-		  }
-	        }
+		}
 	    } else if (0 == strcmp(tokens[i], "|")) {
 		pipes_size++;
 		cmd_size++;
@@ -177,10 +176,9 @@ ReturnStatus GetShellMessage(void)
 	    }
 	    i++;
 	}
-   	if (tokens != NULL)
-    	{
-    	num_write = write(history_fd,"\n", 1);
-    	}
+	if (tokens != NULL) {
+	    num_write = write(history_fd, "\n", 1);
+	}
 
 
 	if (ParseData.pipe == 1) {
@@ -227,7 +225,8 @@ ReturnStatus GetShellMessage(void)
 	    free(pipes_arr);
 	    free(cmd_arr);
 	}
-	if ((tokens[ParseData.argc-1] != NULL) && (!(strcmp(tokens[ParseData.argc - 1], "&")))) {
+	if ((tokens[ParseData.argc - 1] != NULL)
+	    && (!(strcmp(tokens[ParseData.argc - 1], "&")))) {
 	    background = 1;
 	}
 	if (((ParseData.pipe == 0) && (redirection == 0))
@@ -236,12 +235,12 @@ ReturnStatus GetShellMessage(void)
 	    if (!strcmp(tokens[0], "exit")) {
 		status = STATUS_FALSE;
 	    } else if (!strcmp(tokens[0], "export")) {
-		    int status = 0;
-		    
-		    status = putenv(tokens[1]);
-		    if (status) {
-			perror("Error to Set env var");
-		    }
+		int status = 0;
+
+		status = putenv(tokens[1]);
+		if (status) {
+		    perror("Error to Set env var");
+		}
 	    } else if (!strcmp(tokens[0], "echo")) {
 		err = echo(ParseData.argc, tokens);
 		if (err != 0) {
@@ -254,44 +253,41 @@ ReturnStatus GetShellMessage(void)
 		}
 
 
-	    } else if (0 == strcmp(tokens[0], "cd")) {	
-		 if ( (ParseData.argc == 1 /* cd only */ ) || (!strcmp(tokens[1],"~")) )
-		{
-		
-		char*  home  = getenv("HOME") ; // get home path from enviroment variables
-		if (home == NULL)
-		{
-		perror("can't see Home Directory\n");
-		exit(EXIT_FAILURE) ;
-		}
-		else{
-			 if (chdir(home)) {
-                        	perror("Error: Can't change directory\n");
-				exit(EXIT_FAILURE) ;
+	    } else if (0 == strcmp(tokens[0], "cd")) {
+		if ((ParseData.argc == 1 /* cd only */ )
+		    || (!strcmp(tokens[1], "~"))) {
 
-                    
-		}
-		
-		}
-		}	
-		else {
-		    if (chdir(tokens[1])) { 	// return 0 on success , -1 on fail 
+		    char *home = getenv("HOME");	// get home path from enviroment variables
+		    if (home == NULL) {
+			perror("can't see Home Directory\n");
+			exit(EXIT_FAILURE);
+		    } else {
+			if (chdir(home)) {
+			    perror("Error: Can't change directory\n");
+			    exit(EXIT_FAILURE);
+
+
+			}
+
+		    }
+		} else {
+		    if (chdir(tokens[1])) {	// return 0 on success , -1 on fail 
 			perror("Error occurred with cd\n");
-			exit(EXIT_FAILURE) ;
-				}
-	
-	    	}
+			exit(EXIT_FAILURE);
+		    }
+
+		}
 	    } else if (!strcmp(tokens[0], "unset")) {
 		int status;
 		if (ParseData.argc != 2) {
-		    perror("Error: too much arguments for unset\n") ;
-		    exit(EXIT_FAILURE) ;
+		    perror("Error: too much arguments for unset\n");
+		    exit(EXIT_FAILURE);
 
 		} else {
 		    status = unsetenv(tokens[1]);
 		    if (status) {
-		    perror("Error with unset\n") ;
-                    exit(EXIT_FAILURE) ;
+			perror("Error with unset\n");
+			exit(EXIT_FAILURE);
 
 		    }
 
@@ -301,13 +297,12 @@ ReturnStatus GetShellMessage(void)
 		str_token = strtok(tokens[0], "=");
 		char *value = strtok(0, "\0");
 		int status = 0;
-		if ((str_token != NULL) && (value != NULL))
-		{
-		status = setenv(str_token, value, 1);
-		if (status) {
-		    perror("Error to Set env var ");
-		    exit(EXIT_FAILURE) ;
-		}
+		if ((str_token != NULL) && (value != NULL)) {
+		    status = setenv(str_token, value, 1);
+		    if (status) {
+			perror("Error to Set env var ");
+			exit(EXIT_FAILURE);
+		    }
 		}
 
 	    } else {
@@ -327,13 +322,13 @@ ReturnStatus GetShellMessage(void)
 		    }
 		    if (execvp(tokens[0], tokens) == -1);
 		    {
-			printf("%s : command not found\n",tokens[0]);
+			printf("%s : command not found\n", tokens[0]);
 			exit(EXIT_FAILURE);
 		    }
 		} else {
 
 		    perror("Failed to fork\n");
-		    exit(EXIT_FAILURE) ;
+		    exit(EXIT_FAILURE);
 		}
 	    }
 	} else {
@@ -536,13 +531,12 @@ char **Parser(ParserData_t * ParseData)
 	} else if (state == IN_TOKEN) {
 
 	    if (env) {
-		if (ch == ':') { // special characters with env var 
-		Resolve_Env_Var(&argv, &l_argc, &Env_Queue, &index);
-		env = 0 ;
-		}
-		else {
-		Store_in_Temp_Queue(&Env_Queue, ch);
-		continue ;
+		if (ch == ':') {	// special characters with env var 
+		    Resolve_Env_Var(&argv, &l_argc, &Env_Queue, &index);
+		    env = 0;
+		} else {
+		    Store_in_Temp_Queue(&Env_Queue, ch);
+		    continue;
 		}
 	    }
 	    info = (char_info_t) {
