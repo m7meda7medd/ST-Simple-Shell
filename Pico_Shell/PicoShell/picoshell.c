@@ -93,13 +93,18 @@ ReturnStatus GetShellMessage(void)
 				perror("Error Occured with dup2\n");
 			    } else {
 				close(fd);
+				if (tokens[0] != NULL) {
 				execvp(tokens[0], tokens);
 				perror("cmd can't found");
 				exit(EXIT_FAILURE);
+				}
 			    }
 			}
 		    } else {
+			if (tokens[0] != NULL )
+			{
 			pid = wait(&err);
+			}
 		    }
 		} else if ((0 == strcmp(tokens[i], ">>")
 			    && (file_index = i + 1, new_fd = 1))) {
@@ -229,9 +234,9 @@ ReturnStatus GetShellMessage(void)
 	    && (!(strcmp(tokens[ParseData.argc - 1], "&")))) {
 	    background = 1;
 	}
-	if (((ParseData.pipe == 0) && (redirection == 0))
+	if ( (tokens[0] != NULL) && (((ParseData.pipe == 0) && (redirection == 0))
 	    || (strcmp(tokens[0], "exit") == 0)
-	    || (strcmp(tokens[0], "cd") == 0)) {
+	    || (strcmp(tokens[0], "cd") == 0)))  {
 	    if (!strcmp(tokens[0], "exit")) {
 		status = STATUS_FALSE;
 	    } else if (!strcmp(tokens[0], "export")) {
