@@ -50,9 +50,11 @@ ReturnStatus GetShellMessage(void)
     printf(ANSI_COLOR_RED "%s" ANSI_COLOR_MAGNETA "@"
 	   ANSI_COLOR_BLUE "STM" ANSI_COLOR_MAGNETA "-" ANSI_COLOR_MAGNETA
 	   "linux:$ " ANSI_COLOR_RESET, env_user);
+    
     history_fd = open("history.txt", O_CREAT | O_RDWR | O_APPEND, 0666);
     if ((history_fd == -1)) {
 	perror("Can't open history file\n");
+	exit(EXIT_FAILURE) ;
     }
     tokens = Parser(&ParseData);
     if (ParseData.argc != 0) {
@@ -134,14 +136,16 @@ ReturnStatus GetShellMessage(void)
 		   {
 		    L_H = strtok(tokens[i], "<>&");
 		    R_H = strtok(NULL, "<>&");
-		    printf("L_H = %s ,%d , R_H = %s, %d \n", L_H,
-			   atoi(L_H), R_H, atoi(R_H));
+		    if ((L_H != NULL) && (R_H != NULL)) ;
+		    { 
 		    pid = fork();
 		    if (pid == -1) {
 			perror("Error with fork");
+			exit(EXIT_FAILURE);
 		    } else if (pid == 0) {
 			if (dup2(atoi(R_H), atoi(L_H) == -1)) {
 			    perror("Error Occured with dup2\n");
+			    exit(EXIT_FAILURE);
 			} else {
 			    free(tokens[i]);
 			    tokens[i] = NULL;
@@ -156,6 +160,7 @@ ReturnStatus GetShellMessage(void)
 			tokens[i] = NULL;
 			pid = wait(&err);
 		    }
+		   }
 		  }
 	        }
 	    } else if (0 == strcmp(tokens[i], "|")) {
@@ -249,45 +254,44 @@ ReturnStatus GetShellMessage(void)
 		}
 
 
-	    } else if (0 == strcmp(tokens[0], "cd")) {
-		if (ParseData.argc > 2 )
-		{
-		perror ("Error with cd \n") ;
-		}	
-		else if ( (ParseData.argc == 1) || (!strcmp(tokens[1],"~")) )
+	    } else if (0 == strcmp(tokens[0], "cd")) {	
+		 if ( (ParseData.argc == 1 /* cd only */ ) || (!strcmp(tokens[1],"~")) )
 		{
 		
-		char*  home  = getenv("HOME") ;
+		char*  home  = getenv("HOME") ; // get home path from enviroment variables
 		if (home == NULL)
 		{
 		perror("can't see Home Directory\n");
+		exit(EXIT_FAILURE) ;
 		}
 		else{
-			 if (chdir(home) == 0) {
-                        // done 
-                    } else {
-                        perror("Error occurred with cd\n");
-                    }
+			 if (chdir(home)) {
+                        	perror("Error: Can't change directory\n");
+				exit(EXIT_FAILURE) ;
+
+                    
 		}
 		
+		}
 		}	
 		else {
-		    if (chdir(tokens[1]) == 0) {
-			// done 
-		    } else {
+		    if (chdir(tokens[1])) { 	// return 0 on success , -1 on fail 
 			perror("Error occurred with cd\n");
-		    }
-		}
-
-	    } else if (0 == strcmp(tokens[0], "unset")) {
+			exit(EXIT_FAILURE) ;
+				}
+	
+	    	}
+	    } else if (!strcmp(tokens[0], "unset")) {
 		int status;
 		if (ParseData.argc != 2) {
-		    printf("Error");
+		    perror("Error: too much arguments for unset\n") ;
+		    exit(EXIT_FAILURE) ;
 
 		} else {
 		    status = unsetenv(tokens[1]);
 		    if (status) {
-			printf("Can't Unset: err:%d\n", errno);
+		    perror("Error with unset\n") ;
+                    exit(EXIT_FAILURE) ;
 
 		    }
 
@@ -297,11 +301,14 @@ ReturnStatus GetShellMessage(void)
 		str_token = strtok(tokens[0], "=");
 		char *value = strtok(0, "\0");
 		int status = 0;
+		if ((str_token != NULL) && (value != NULL))
+		{
 		status = setenv(str_token, value, 1);
 		if (status) {
 		    perror("Error to Set env var ");
+		    exit(EXIT_FAILURE) ;
 		}
-
+		}
 
 	    } else {
 		pid = fork();
@@ -310,7 +317,6 @@ ReturnStatus GetShellMessage(void)
 		    if (!background) {
 			pid_t returned_child;
 			int wstatus;
-			unsigned char res_wstatus = 0;
 			returned_child = wait(&wstatus);
 		    }
 		} else if (pid == 0)	// child 
@@ -321,12 +327,13 @@ ReturnStatus GetShellMessage(void)
 		    }
 		    if (execvp(tokens[0], tokens) == -1);
 		    {
-			printf("%s :command not found\n", tokens[0]);
-			exit(EXIT_SUCCESS);
+			printf("%s : command not found\n",tokens[0]);
+			exit(EXIT_FAILURE);
 		    }
 		} else {
 
 		    perror("Failed to fork\n");
+		    exit(EXIT_FAILURE) ;
 		}
 	    }
 	} else {
@@ -428,7 +435,7 @@ char **Parser(ParserData_t * ParseData)
 		err = Allocate_Mem_for_Ptr(&l_argc, &argv);
 		if (err == -1) {
 		    perror("Error Allocating Mem for Char");
-		    while (1);
+		    exit(EXIT_FAILURE);
 		}
 		state = IN_TOKEN;
 		index = 0;
@@ -529,9 +536,14 @@ char **Parser(ParserData_t * ParseData)
 	} else if (state == IN_TOKEN) {
 
 	    if (env) {
+		if (ch == ':') { // special characters with env var 
+		Resolve_Env_Var(&argv, &l_argc, &Env_Queue, &index);
+		env = 0 ;
+		}
+		else {
 		Store_in_Temp_Queue(&Env_Queue, ch);
-		continue;
-
+		continue ;
+		}
 	    }
 	    info = (char_info_t) {
 	    .ch = ch,.index = index};

@@ -31,3 +31,12 @@ exit
 echo abokhalil 
 cat history.txt 
 exit 
+ls 
+mohamed=5 
+echo 5 
+mohamed=5:3 
+echo 5:3 
+mohamed= 
+mohamed=3 
+echo 3 
+exit 
