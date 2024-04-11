@@ -38,7 +38,7 @@ ReturnStatus GetShellMessage(void)
     int err, fd, cmd_size = 1,
 	pipes_size = 0, pipes_index = 0, *pipes_arr = NULL;
     cmd_typedef *cmd_arr = NULL;
-    int new_fd = 0, history_fd = -2, signal_fd = -2, num_write;
+    int new_fd = 0, signal_fd = -2, num_write;
     unsigned char background = 0;
     pid_t pid = -1;
     unsigned char redirection = 0, l_pipe = 0;
@@ -51,12 +51,15 @@ ReturnStatus GetShellMessage(void)
 	   ANSI_COLOR_BLUE "STM" ANSI_COLOR_MAGNETA "-" ANSI_COLOR_MAGNETA
 	   "linux:$ " ANSI_COLOR_RESET, env_user);
 
-    history_fd = open("history.txt", O_CREAT | O_RDWR | O_APPEND, 0666);
-    if ((history_fd == -1)) {
-	perror("Can't open history file\n");
-	exit(EXIT_FAILURE);
-    }
     tokens = Parser(&ParseData);
+    printf("argc = %ld\n",ParseData.argc) ;
+    int k = 0 ;
+    while (tokens[k] != NULL)
+    {
+	printf("token[%d]=%s\n",k,tokens[k]) ;
+	k++ ;
+
+    }
     if (ParseData.argc != 0) {
 	if (ParseData.pipe == 1) {
 	    cmd_arr =
@@ -66,11 +69,6 @@ ReturnStatus GetShellMessage(void)
 	}
 	int i = 0;
 	while (tokens[i] != NULL) {
-	    num_write = write(history_fd, tokens[i], strlen(tokens[i]));
-	    if (num_write == -1) {
-		perror("Error writing to history file\n");
-	    }
-	    num_write = write(history_fd, " ", sizeof(char));
 	    if ((strchr(tokens[i], '>') != NULL)
 		|| (strchr(tokens[i], '<') != NULL)) {
 		redirection = 1;
@@ -181,11 +179,6 @@ ReturnStatus GetShellMessage(void)
 	    }
 	    i++;
 	}
-	if (tokens != NULL) {
-	    num_write = write(history_fd, "\n", 1);
-	}
-
-
 	if (ParseData.pipe == 1) {
 	    pipes_size = 2 * pipes_size;
 	    pipes_arr =
@@ -340,10 +333,6 @@ ReturnStatus GetShellMessage(void)
 
 	}
     }
-
-    if (history_fd > 0) {
-	close(history_fd);
-    }
     if (signal_fd > 0) {
 	close(signal_fd);
     }
@@ -405,15 +394,32 @@ char **Parser(ParserData_t * ParseData)
     size_t index = 0;
     char ch, ch2, special_char = 0, env = 0;
     int err = 0;
+    int history_fd = -1,num_write ;
     unsigned l_size = 0;
     Queue *Env_Queue = NULL;
     char **argv = NULL;
     unsigned long l_argc = 0;
+
     char_info_t info;		// number of tokens
-    fflush(stdin);		// fflush stdin to avoid buffer undefined behaviour 
+    fflush(stdin);		// fflush stdin to avoid buffer undefined behaviour
+     history_fd = open("history.txt", O_CREAT | O_RDWR | O_APPEND, 0666);
+    if ((history_fd == -1)) {
+        perror("Can't open history file\n");
+        exit(EXIT_FAILURE);
+    }
+
     while (ch = getchar())	// loop on characters entered in stdin
     {
-
+	if (((ch == ' ') && (state != IN_TOKEN)) || (ch =='\n')){
+	 // do nothing
+	}	
+	else{
+     	    num_write = write(history_fd,(char*)&ch,sizeof(char));
+            if (num_write == -1) {
+                perror("Error writing to history file\n");
+            }
+	}
+	
 	if ((ch == '\n')) {
 	    if (state == START_OF_TOKEN) {
 		if (l_argc == 0) {
@@ -441,6 +447,11 @@ char **Parser(ParserData_t * ParseData)
 		index = 0;
 	    }
 	    while ((ch2 = getchar())) {
+            num_write = write(history_fd, (char*) &ch2,sizeof(char));
+            	if (num_write == -1) {
+                perror("Error writing to history file\n");
+		exit(EXIT_FAILURE) ;
+        	}
 		if (ch2 == '\n') {
 		    printf(">");
 
@@ -575,6 +586,12 @@ char **Parser(ParserData_t * ParseData)
 		index = 0;
 		state = START_OF_TOKEN;
 	    } else {		// case end of cmd 
+		 num_write = write (history_fd, "\n", sizeof(char)) ;
+		 if (num_write == -1)
+		 {
+			 perror ("Error writing to history file\n") ;
+			 exit(EXIT_FAILURE) ;
+		 }
 		if (index != 0) {
 		    info = (char_info_t) {
 		    .ch = '\0',.index = index};
@@ -596,7 +613,9 @@ char **Parser(ParserData_t * ParseData)
 	}
 
     }
-
+    if (history_fd > 0) {
+        close(history_fd);
+    }
     ParseData->argc = l_argc;
     return argv;
 }
