@@ -74,27 +74,23 @@ ReturnStatus GetShellMessage(void)
 		    if (pid == -1) {
 			perror("Error with Fork\n");
 		    } else if (pid == 0) {
-			fd = open(tokens[file_index], O_RDWR | O_CREAT,
-				  0777);
 			if (fd == -1) {
 			    perror("can't open File\n");
+			    exit(EXIT_FAILURE) ;
 			} else {
+			    fd = open(tokens[file_index], O_RDWR | O_CREAT  , 0777);
 			    if (dup2(fd, new_fd) == -1) {
 				perror("Error Occured with dup2\n");
-			    } else {
-				close(fd);
-				if (tokens[0] != NULL) {
+				exit(EXIT_FAILURE) ;
+			    } else {	
 				execvp(tokens[0], tokens);
 				perror("cmd can't found");
 				exit(EXIT_FAILURE);
-				}
 			    }
 			}
 		    } else {
-			if (tokens[0] != NULL )
-			{
 			pid = wait(&err);
-			}
+			
 		    }
 		} else if ((0 == strcmp(tokens[i], ">>")
 			    && (file_index = i + 1, new_fd = 1))) {
