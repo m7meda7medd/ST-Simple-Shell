@@ -52,14 +52,6 @@ ReturnStatus GetShellMessage(void)
 	   "linux:$ " ANSI_COLOR_RESET, env_user);
 
     tokens = Parser(&ParseData);
-    printf("argc = %ld\n",ParseData.argc) ;
-    int k = 0 ;
-    while (tokens[k] != NULL)
-    {
-	printf("token[%d]=%s\n",k,tokens[k]) ;
-	k++ ;
-
-    }
     if (ParseData.argc != 0) {
 	if (ParseData.pipe == 1) {
 	    cmd_arr =
